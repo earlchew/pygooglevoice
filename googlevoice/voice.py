@@ -1,5 +1,7 @@
 from conf import config
 from util import *
+import HTMLParser
+import cgi
 import settings
 import os
 
@@ -66,12 +68,31 @@ class Voice(object):
             from getpass import getpass
             passwd = getpass()
 
-        content = self.__do_page('login').read()
-         # holy hackjob
-	galx = re.search(r"name=\"GALX\" type=\"hidden\"\n *value=\"(.+)\"", content).group(1)
-	service = re.search(r"name=\"service\" type=\"hidden\" value=\"(.+)\"", content).group(1)
-	utf8 = re.search(r"type=\"hidden\" id=\"_utf8\" name=\"_utf8\" value=\"(.+)\"", content).group(1)
-	bgresponse = re.search(r"type=\"hidden\" name=\"bgresponse\" id=\"bgresponse\" value=\"(.+)\"", content).group(1)
+        class Parser(HTMLParser.HTMLParser):
+
+            def __init__(self, feed):
+                HTMLParser.HTMLParser.__init__(self)
+                self._inputAttr = { }
+                self.feed(feed)
+                self.close()
+
+            def __getattr__(self, attr):
+                return cgi.escape(self._inputAttr[attr]).encode(
+                    'ascii', 'xmlcharrefreplace')
+
+            def handle_starttag(self, tag, attrs):
+                if tag == 'input':
+                    attrdict = dict(attrs)
+                    name = attrdict['name']
+                    value = attrdict.get('value', None)
+                    self._inputAttr[name] = value
+                pass
+
+        parser = Parser(self.__do_page('login').read())
+        galx = parser.GALX
+        service = parser.service
+        utf8 = parser._utf8
+        bgresponse = parser.bgresponse
 	pstMsg = "1"
 
         self.__do_page('login', {'Email': email, 'Passwd': passwd, 'GALX': galx, '_utf8': utf8, 'bgresponse': bgresponse, 'pstMsg': pstMsg, 'service': service, 'continue': 'https://www.google.com/voice/', 'followup': 'https://www.google.com/voice/'})

@@ -83,9 +83,10 @@ class Voice(object):
             def handle_starttag(self, tag, attrs):
                 if tag == 'input':
                     attrdict = dict(attrs)
-                    name = attrdict['name']
+                    name = attrdict.get('name', None)
                     value = attrdict.get('value', None)
-                    self._inputAttr[name] = value
+                    if name is not None:
+                        self._inputAttr[name] = value
                 pass
 
         parser = Parser(self.__do_page('login').read())
